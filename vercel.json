@@ -1,27 +1,15 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "server/index.js",
-      "use": "@vercel/node"
-    }
+      {
+          "src": "server/app.js",
+          "use": "@vercel/node"
+      }
   ],
   "routes": [
-    {
-      "src": "/favicon.ico",
-      "dest": "server/index.js"
-    },
-    {
-      "src": "/api/juguetes/(.*)",
-      "dest": "server/index.js"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "server/index.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "server/index.js"
-    }
+      {
+          "src": "/(.*)",
+          "dest": "server/app.js"
+      }
   ]
 }
