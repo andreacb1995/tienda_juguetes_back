@@ -6,7 +6,13 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// Configuración de CORS más específica
+app.use(cors({
+    origin: ['https://tienda-juguetes.vercel.app', 'https://tienda-juguetes-git-master-andreas-projects-c298c94d.vercel.app'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true
+}));
+
 app.use(express.json());
 
 const dbUrl = process.env.MONGODB_URI;
@@ -57,6 +63,12 @@ mongoose.connection.on('error', (err) => {
     isConnected = false;
 });
 
+// Middleware para logging
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+});
+
 // Middleware para verificar el estado de la conexión
 app.use(async (req, res, next) => {
     if (!isConnected) {
@@ -82,6 +94,8 @@ app.use(async (req, res, next) => {
 app.get('/', (req, res) => {
     res.json({
         message: 'API de Tienda de Juguetes',
+        status: 'online',
+        dbStatus: isConnected ? 'connected' : 'disconnected',
         endpoints: {
             novedades: '/api/novedades',
             puzzles: '/api/puzzles',
@@ -99,6 +113,7 @@ app.get('/api/novedades', async (req, res) => {
         const novedades = await Novedades.find();
         res.json(novedades);
     } catch (err) {
+        console.error('Error en /api/novedades:', err);
         res.status(500).json({ message: err.message });
     }
 });
@@ -111,6 +126,7 @@ app.get('/api/novedades/:id', async (req, res) => {
         }
         res.json(novedad);
     } catch (err) {
+        console.error('Error en /api/novedades/:id:', err);
         res.status(500).json({ message: err.message });
     }
 });
@@ -203,10 +219,11 @@ app.get('/api/juegos-madera/:id', async (req, res) => {
     }
 });
 
-// Ruta de verificación de estado con más detalles
+// Ruta de verificación de estado
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'ok',
+        environment: process.env.NODE_ENV,
         dbStatus: isConnected ? 'connected' : 'disconnected',
         dbStateDetails: mongoose.connection.readyState,
         timestamp: new Date().toISOString()
@@ -215,8 +232,11 @@ app.get('/api/health', (req, res) => {
 
 // Manejo de rutas no encontradas
 app.use('*', (req, res) => {
+    console.log(`Ruta no encontrada: ${req.method} ${req.originalUrl}`);
     res.status(404).json({ 
         message: 'Ruta no encontrada',
+        requestedPath: req.originalUrl,
+        method: req.method,
         availableEndpoints: {
             root: '/',
             novedades: '/api/novedades',
