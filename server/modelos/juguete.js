@@ -9,15 +9,15 @@ const jugueteSchema = new mongoose.Schema({
 
 // Crear modelos para cada colección
 const Novedades = mongoose.model('Novedades', jugueteSchema, 'novedades');
-const Puzles = mongoose.model('Puzles', jugueteSchema, 'puzles');
-const Creatividad = mongoose.model('Creatividad', jugueteSchema, 'creatividad');
+const Puzzles = mongoose.model('Puzzles', jugueteSchema, 'puzzles');
+const JuegosCreatividad = mongoose.model('JuegosCreatividad', jugueteSchema, 'juegos-creatividad');
 const JuegosMesa = mongoose.model('JuegosMesa', jugueteSchema, 'juegos-mesa');
-const Madera = mongoose.model('Madera', jugueteSchema, 'madera');
+const JuegosMadera = mongoose.model('JuegosMadera', jugueteSchema, 'juegos-madera');
 
 module.exports = {
     Novedades,
-    Puzles,
-    Creatividad,
+    Puzzles,
+    JuegosCreatividad,
     JuegosMesa,
-    Madera
+    JuegosMadera
 };
