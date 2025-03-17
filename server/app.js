@@ -2,7 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const { MONGODB_URI } = require('./config');
-const juguetesRoutes = require('./routes/juguetes');
 
 const app = express();
 
@@ -10,43 +9,40 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Ignorar favicon
-app.get('/favicon.ico', (req, res) => res.status(204));
-
-// Conexión a MongoDB con mejor manejo de errores
+// Conexión a MongoDB actualizada
 const connectDB = async () => {
     try {
-        await mongoose.connect(MONGODB_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
+        const conn = await mongoose.connect(MONGODB_URI, {
+            serverSelectionTimeoutMS: 5000, // Timeout después de 5 segundos
+            socketTimeoutMS: 45000, // Timeout de socket después de 45 segundos
         });
-        console.log('✅ Conectado a MongoDB Atlas');
+        
+        console.log(`MongoDB Conectado: ${conn.connection.host}`);
+        return true;
     } catch (error) {
-        console.error('❌ Error conectando a MongoDB:', error.message);
-        // No lanzamos el error, permitimos que la app siga funcionando
+        console.error('Error de conexión MongoDB:', error.message);
+        return false;
     }
 };
 
-connectDB();
-
-// Middleware para verificar estado de MongoDB
-app.use((req, res, next) => {
-    if (mongoose.connection.readyState !== 1) {
-        return res.status(503).json({
-            error: 'Database connection not ready',
-            status: 'error',
-            message: 'Trying to connect to database'
-        });
+// Iniciar conexión
+connectDB().then(isConnected => {
+    if (!isConnected) {
+        console.log('⚠️ Iniciando sin conexión a base de datos');
     }
-    next();
 });
 
 // Ruta principal
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
+    const isConnected = mongoose.connection.readyState === 1;
+    
     res.json({
-        status: 'online',
-        message: 'API de Edukids funcionando',
-        mongoStatus: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        status: isConnected ? 'online' : 'database_error',
+        message: 'API de Edukids',
+        database: {
+            status: isConnected ? 'connected' : 'disconnected',
+            host: isConnected ? mongoose.connection.host : null
+        },
         endpoints: {
             api: '/api',
             juguetes: '/api/juguetes',
@@ -93,24 +89,6 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Manejo de rutas no encontradas
-app.use('*', (req, res) => {
-    res.status(404).json({
-        status: 'error',
-        message: 'Ruta no encontrada',
-        availableEndpoints: {
-            root: '/',
-            api: '/api',
-            juguetes: '/api/juguetes',
-            categorias: [
-                '/api/juguetes/novedades',
-                '/api/juguetes/puzles',
-                '/api/juguetes/creatividad',
-                '/api/juguetes/juegos-mesa',
-                '/api/juguetes/madera'
-            ]
-        }
-    });
-});
+
 
 module.exports = app;
