@@ -17,26 +17,66 @@ if (!dbUrl) {
     process.exit(1);
 }
 
-// Conexión a MongoDB con manejo de errores mejorado
+// Configuración de conexión MongoDB
+mongoose.set('strictQuery', false);
+let isConnected = false;
+
+// Función para conectar a MongoDB
 const connectDB = async () => {
+    if (isConnected) {
+        console.log('MongoDB ya está conectado');
+        return;
+    }
+
     try {
-        await mongoose.connect(dbUrl, {
+        const db = await mongoose.connect(dbUrl, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
         });
-        console.log('Conexión a MongoDB establecida correctamente');
+
+        isConnected = true;
+        console.log('MongoDB conectado en:', db.connection.host);
     } catch (error) {
-        console.error('Error al conectar a MongoDB:', error.message);
-        process.exit(1);
+        console.error('Error conectando a MongoDB:', error.message);
+        isConnected = false;
+        // No hacemos process.exit(1) para permitir reintentos
     }
 };
 
+// Conectar a MongoDB al inicio
 connectDB();
 
+// Reconexión en caso de desconexión
+mongoose.connection.on('disconnected', () => {
+    console.log('MongoDB desconectado. Intentando reconectar...');
+    isConnected = false;
+    setTimeout(connectDB, 5000);
+});
+
+mongoose.connection.on('error', (err) => {
+    console.error('Error en la conexión MongoDB:', err);
+    isConnected = false;
+});
+
 // Middleware para verificar el estado de la conexión
-app.use((req, res, next) => {
-    if (mongoose.connection.readyState !== 1) {
-        return res.status(503).json({ message: 'Base de datos no disponible' });
+app.use(async (req, res, next) => {
+    if (!isConnected) {
+        try {
+            await connectDB();
+            if (!isConnected) {
+                return res.status(503).json({ 
+                    message: 'Base de datos no disponible',
+                    details: 'Intentando reconectar con la base de datos'
+                });
+            }
+        } catch (error) {
+            return res.status(503).json({ 
+                message: 'Base de datos no disponible',
+                details: error.message
+            });
+        }
     }
     next();
 });
@@ -151,9 +191,14 @@ app.get('/api/juegos-madera/:id', async (req, res) => {
     }
 });
 
-// Ruta de verificación de estado
+// Ruta de verificación de estado con más detalles
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', dbStatus: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
+    res.json({ 
+        status: 'ok',
+        dbStatus: isConnected ? 'connected' : 'disconnected',
+        dbStateDetails: mongoose.connection.readyState,
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Manejo de rutas no encontradas
