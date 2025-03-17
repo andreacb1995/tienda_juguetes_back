@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const { MONGODB_URI } = require('./config');
-const juguetesRoutes = require('./routes/juguetes.routes');
+const juguetesRoutes = require('./routes/juguetes');
 
 const app = express();
 
