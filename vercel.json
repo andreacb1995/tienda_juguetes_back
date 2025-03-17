@@ -8,6 +8,14 @@
   ],
   "routes": [
     {
+      "src": "/favicon.ico",
+      "dest": "server/index.js"
+    },
+    {
+      "src": "/api/juguetes/(.*)",
+      "dest": "server/index.js"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "server/index.js"
     },
@@ -15,8 +23,5 @@
       "src": "/(.*)",
       "dest": "server/index.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
