@@ -1,5 +1,5 @@
 {
-  "name": "edukids_back",
+  "name": "tienda_juguetes_back",
   "version": "1.0.0",
   "main": "server/index.js",
   "scripts": {

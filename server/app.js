@@ -2,13 +2,18 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const { MONGODB_URI } = require('./config');
-const juguetesRoutes = require('./routes/juguetes');
+const juguetesRoutes = require('./routes/juguetes.routes');
 
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Ruta de prueba
+app.get('/', (req, res) => {
+    res.json({ message: 'API de Edukids funcionando' });
+});
 
 // Conexión a MongoDB
 mongoose.connect(MONGODB_URI)
@@ -17,10 +22,5 @@ mongoose.connect(MONGODB_URI)
 
 // Rutas
 app.use('/api/juguetes', juguetesRoutes);
-
-// Ruta de prueba
-app.get('/api', (req, res) => {
-    res.json({ mensaje: 'API de Edukids funcionando' });
-});
 
 module.exports = app;
