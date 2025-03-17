@@ -30,8 +30,6 @@ const connectDB = async () => {
 
     try {
         const db = await mongoose.connect(dbUrl, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
         });
@@ -41,7 +39,6 @@ const connectDB = async () => {
     } catch (error) {
         console.error('Error conectando a MongoDB:', error.message);
         isConnected = false;
-        // No hacemos process.exit(1) para permitir reintentos
     }
 };
 
@@ -79,6 +76,21 @@ app.use(async (req, res, next) => {
         }
     }
     next();
+});
+
+// Ruta raíz
+app.get('/', (req, res) => {
+    res.json({
+        message: 'API de Tienda de Juguetes',
+        endpoints: {
+            novedades: '/api/novedades',
+            puzzles: '/api/puzzles',
+            juegosCreatividad: '/api/juegos-creatividad',
+            juegosMesa: '/api/juegos-mesa',
+            juegosMadera: '/api/juegos-madera',
+            health: '/api/health'
+        }
+    });
 });
 
 // Rutas para Novedades
@@ -203,7 +215,18 @@ app.get('/api/health', (req, res) => {
 
 // Manejo de rutas no encontradas
 app.use('*', (req, res) => {
-    res.status(404).json({ message: 'Ruta no encontrada' });
+    res.status(404).json({ 
+        message: 'Ruta no encontrada',
+        availableEndpoints: {
+            root: '/',
+            novedades: '/api/novedades',
+            puzzles: '/api/puzzles',
+            juegosCreatividad: '/api/juegos-creatividad',
+            juegosMesa: '/api/juegos-mesa',
+            juegosMadera: '/api/juegos-madera',
+            health: '/api/health'
+        }
+    });
 });
 
 // Exportar la app para Vercel
