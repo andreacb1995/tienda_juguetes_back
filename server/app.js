@@ -171,27 +171,21 @@ app.get('/api/novedades/:id', async (req, res) => {
 // Rutas para Puzzles
 app.get('/api/puzzles', async (req, res) => {
     try {
-        console.log('Intentando obtener puzzles...');
         const puzzles = await Puzzles.find();
-        console.log('Puzzles encontrados:', puzzles);
         
-        // Si no hay puzzles, enviar un mensaje más descriptivo
-        if (!puzzles || puzzles.length === 0) {
-            console.log('No se encontraron puzzles en la base de datos');
+        if (!puzzles) {
             return res.status(404).json({ 
-                message: 'No se encontraron puzzles',
-                dbStatus: isConnected,
-                collectionName: 'puzzles'
+                mensaje: 'No se encontraron puzzles',
+                error: 'Colección vacía'
             });
         }
         
         res.json(puzzles);
     } catch (err) {
-        console.error('Error al obtener puzzles:', err);
         res.status(500).json({ 
-            message: err.message,
-            dbStatus: isConnected,
-            error: process.env.NODE_ENV === 'development' ? err : undefined
+            mensaje: 'Error al obtener puzzles',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
         });
     }
 });
@@ -200,11 +194,18 @@ app.get('/api/puzzles/:id', async (req, res) => {
     try {
         const puzzle = await Puzzles.findById(req.params.id);
         if (!puzzle) {
-            return res.status(404).json({ message: 'Puzzle no encontrado' });
+            return res.status(404).json({ 
+                mensaje: 'Puzzle no encontrado',
+                error: 'ID no existe'
+            });
         }
         res.json(puzzle);
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        res.status(500).json({ 
+            mensaje: 'Error al obtener el puzzle',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
@@ -212,9 +213,21 @@ app.get('/api/puzzles/:id', async (req, res) => {
 app.get('/api/juegos-creatividad', async (req, res) => {
     try {
         const juegosCreatividad = await JuegosCreatividad.find();
+        
+        if (!juegosCreatividad) {
+            return res.status(404).json({ 
+                mensaje: 'No se encontraron juegos de creatividad',
+                error: 'Colección vacía'
+            });
+        }
+        
         res.json(juegosCreatividad);
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        res.status(500).json({ 
+            mensaje: 'Error al obtener juegos de creatividad',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
@@ -222,11 +235,18 @@ app.get('/api/juegos-creatividad/:id', async (req, res) => {
     try {
         const juegoCreatividad = await JuegosCreatividad.findById(req.params.id);
         if (!juegoCreatividad) {
-            return res.status(404).json({ message: 'Juego de creatividad no encontrado' });
+            return res.status(404).json({ 
+                mensaje: 'Juego de creatividad no encontrado',
+                error: 'ID no existe'
+            });
         }
         res.json(juegoCreatividad);
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        res.status(500).json({ 
+            mensaje: 'Error al obtener el juego de creatividad',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
@@ -234,9 +254,21 @@ app.get('/api/juegos-creatividad/:id', async (req, res) => {
 app.get('/api/juegos-mesa', async (req, res) => {
     try {
         const juegosMesa = await JuegosMesa.find();
+        
+        if (!juegosMesa) {
+            return res.status(404).json({ 
+                mensaje: 'No se encontraron juegos de mesa',
+                error: 'Colección vacía'
+            });
+        }
+        
         res.json(juegosMesa);
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        res.status(500).json({ 
+            mensaje: 'Error al obtener juegos de mesa',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
@@ -244,11 +276,18 @@ app.get('/api/juegos-mesa/:id', async (req, res) => {
     try {
         const juegoMesa = await JuegosMesa.findById(req.params.id);
         if (!juegoMesa) {
-            return res.status(404).json({ message: 'Juego de mesa no encontrado' });
+            return res.status(404).json({ 
+                mensaje: 'Juego de mesa no encontrado',
+                error: 'ID no existe'
+            });
         }
         res.json(juegoMesa);
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        res.status(500).json({ 
+            mensaje: 'Error al obtener el juego de mesa',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
@@ -256,9 +295,21 @@ app.get('/api/juegos-mesa/:id', async (req, res) => {
 app.get('/api/juegos-madera', async (req, res) => {
     try {
         const juegosMadera = await JuegosMadera.find();
+        
+        if (!juegosMadera) {
+            return res.status(404).json({ 
+                mensaje: 'No se encontraron juegos de madera',
+                error: 'Colección vacía'
+            });
+        }
+        
         res.json(juegosMadera);
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        res.status(500).json({ 
+            mensaje: 'Error al obtener juegos de madera',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
@@ -266,11 +317,18 @@ app.get('/api/juegos-madera/:id', async (req, res) => {
     try {
         const juegoMadera = await JuegosMadera.findById(req.params.id);
         if (!juegoMadera) {
-            return res.status(404).json({ message: 'Juego de madera no encontrado' });
+            return res.status(404).json({ 
+                mensaje: 'Juego de madera no encontrado',
+                error: 'ID no existe'
+            });
         }
         res.json(juegoMadera);
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        res.status(500).json({ 
+            mensaje: 'Error al obtener el juego de madera',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
