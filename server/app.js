@@ -5,9 +5,25 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
+const session = require('express-session');
+const Usuario = require('./modelos/usuario');
 
 app.use(cors());
 app.use(express.json());
+
+
+// Configuración de sesiones
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: true,  
+        sameSite: 'none', 
+        maxAge: 3600000, // 1 hora
+        httpOnly: true
+    }
+}));
 
 const dbUrl = process.env.MONGODB_URI;
 const dbName = 'edukids';
@@ -225,18 +241,127 @@ app.get('/api/juegos-madera/:id', async (req, res) => {
     }
 });
 
-// Ruta de verificación de estado con más detalles
-app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'ok',
-        dbStatus: isConnected ? 'connected' : 'disconnected',
-        dbStateDetails: mongoose.connection.readyState,
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV,
-        mongoDbConfigured: !!process.env.MONGODB_URI,
-        version: process.env.npm_package_version || '1.0.0'
+
+// Rutas de autenticación
+app.post('/api/auth/registro', async (req, res) => {
+    try {
+        const { nombre, email, password } = req.body;
+
+        // Verificar si el usuario ya existe
+        const usuarioExistente = await Usuario.findOne({ email });
+        if (usuarioExistente) {
+            return res.status(400).json({ mensaje: 'El email ya está registrado' });
+        }
+
+        // Crear nuevo usuario
+        const usuario = new Usuario({
+            nombre,
+            email,
+            password
+        });
+
+        await usuario.save();
+
+        // Crear sesión
+        req.session.userId = usuario._id;
+
+        res.status(201).json({
+            mensaje: 'Usuario registrado exitosamente',
+            usuario: {
+                id: usuario._id,
+                nombre: usuario.nombre,
+                email: usuario.email
+            }
+        });
+    } catch (error) {
+        console.error('Error en registro:', error);
+        res.status(500).json({ mensaje: 'Error en el servidor', error: error.message });
+    }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        // Buscar usuario
+        const usuario = await Usuario.findOne({ email });
+        if (!usuario) {
+            return res.status(401).json({ mensaje: 'Credenciales inválidas' });
+        }
+
+        // Verificar contraseña
+        const esValida = await usuario.compararPassword(password);
+        if (!esValida) {
+            return res.status(401).json({ mensaje: 'Credenciales inválidas' });
+        }
+
+        // Crear sesión
+        req.session.userId = usuario._id;
+
+        res.json({
+            mensaje: 'Login exitoso',
+            usuario: {
+                id: usuario._id,
+                nombre: usuario.nombre,
+                email: usuario.email
+            }
+        });
+    } catch (error) {
+        console.error('Error en login:', error);
+        res.status(500).json({ mensaje: 'Error en el servidor', error: error.message });
+    }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            return res.status(500).json({ mensaje: 'Error al cerrar sesión' });
+        }
+        res.json({ mensaje: 'Sesión cerrada exitosamente' });
     });
 });
+
+app.get('/api/auth/verificar-sesion', async (req, res) => {
+    try {
+        if (!req.session.userId) {
+            return res.json({ autenticado: false });
+        }
+
+        const usuario = await Usuario.findById(req.session.userId).select('-password');
+        if (!usuario) {
+            return res.json({ autenticado: false });
+        }
+
+        res.json({
+            autenticado: true,
+            usuario: {
+                id: usuario._id,
+                nombre: usuario.nombre,
+                email: usuario.email
+            }
+        });
+    } catch (error) {
+        console.error('Error al verificar sesión:', error);
+        res.status(500).json({ mensaje: 'Error en el servidor', error: error.message });
+    }
+});
+
+// Middleware para proteger rutas
+const requireAuth = async (req, res, next) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ mensaje: 'No autorizado' });
+    }
+    try {
+        const usuario = await Usuario.findById(req.session.userId);
+        if (!usuario) {
+            return res.status(401).json({ mensaje: 'No autorizado' });
+        }
+        req.usuario = usuario;
+        next();
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error en el servidor' });
+    }
+};
 
 // Middleware de error global
 app.use((err, req, res, next) => {
