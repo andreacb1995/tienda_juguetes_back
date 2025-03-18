@@ -9,25 +9,15 @@ const session = require('express-session');
 const Usuario = require('./modelos/usuario');
 
 app.use(cors({
-    origin: function(origin, callback) {
-        const allowedOrigins = [
-            'https://tienda-juguetes.vercel.app',
-            'http://localhost:4200'
-        ];
-        
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, origin);
-        } else {
-            callback(new Error('No permitido por CORS'));
-        }
-    },
+    origin: process.env.NODE_ENV === 'production' 
+        ? ['https://tienda-juguetes.vercel.app', 'http://localhost:4200']
+        : 'http://localhost:4200',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
     exposedHeaders: ['Content-Range', 'X-Content-Range'],
     maxAge: 600
 }));
-
 
 app.use(express.json());
 
@@ -175,8 +165,33 @@ app.get('/api/novedades/:id', async (req, res) => {
     }
 });
 
-// Rutas para Puzzles
+
 app.get('/api/puzzles', async (req, res) => {
+    try {
+        const puzzles = await Puzzles.find();
+        
+        if (!puzzles) {
+            console.log('No se encontraron puzzles');
+            return res.status(404).json({ 
+                mensaje: 'No se encontraron puzzles',
+                error: 'Colección vacía'
+            });
+        }
+        
+        res.json(puzzles);
+    } catch (err) {
+        console.error('Error al obtener puzzles:', err);
+        res.status(500).json({ 
+            mensaje: 'Error al obtener puzzles',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
+    }
+});
+
+
+// Rutas para Puzzles
+app.get('/api/puzzles2', async (req, res) => {
     try {
         const puzzles = await Puzzles.find();
         
