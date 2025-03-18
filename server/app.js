@@ -9,9 +9,18 @@ const session = require('express-session');
 const Usuario = require('./modelos/usuario');
 
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production' 
-        ? ['https://tienda-juguetes.vercel.app', 'http://localhost:4200']
-        : 'http://localhost:4200',
+    origin: function(origin, callback) {
+        const allowedOrigins = [
+            'https://tienda-juguetes.vercel.app',
+            'http://localhost:4200'
+        ];
+        
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, origin);
+        } else {
+            callback(new Error('No permitido por CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
@@ -19,18 +28,7 @@ app.use(cors({
     maxAge: 600
 }));
 
-// Middleware para logging y CORS
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Origin', req.headers.origin);
-    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
-    
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-    next();
-});
+
 app.use(express.json());
 
 
