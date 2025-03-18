@@ -8,30 +8,20 @@ const PORT = process.env.PORT || 3000;
 const session = require('express-session');
 const Usuario = require('./modelos/usuario');
 
-app.use(cors({
-    origin: function(origin, callback) {
-        const allowedOrigins = [
-            'https://tienda-juguetes.vercel.app',
-            'http://localhost:4200'
-        ];
-        
-        // Permitir solicitudes sin origen (como las realizadas desde Postman)
-        if (!origin) {
-            return callback(null, true);
-        }
-
-        if (allowedOrigins.indexOf(origin) !== -1) {
+const corsOptions = {
+    origin: function (origin, callback) {
+        const allowedOrigins = ['http://localhost:4200', 'https://tienda-juguetes.vercel.app'];
+        if (!origin || allowedOrigins.includes(origin)) {
             callback(null, origin);
         } else {
-            callback(new Error('No permitido por CORS'));
+            callback(new Error('Bloqueado por CORS'));
         }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
-    maxAge: 600
-}));
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
@@ -181,6 +171,15 @@ app.get('/api/novedades/:id', async (req, res) => {
 
 
 app.get('/api/puzzles', async (req, res) => {
+    // Establecer headers CORS específicos
+    const origin = req.headers.origin;
+    if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
     try {
         const puzzles = await Puzzles.find();
         
