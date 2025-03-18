@@ -6,9 +6,25 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuración de CORS más específica
+// Configuración de CORS más permisiva para desarrollo
+const allowedOrigins = [
+    'https://tienda-juguetes.vercel.app',
+    'https://tienda-juguetes-git-master-andreas-projects-c298c94d.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001'
+];
+
 app.use(cors({
-    origin: ['https://tienda-juguetes.vercel.app', 'https://tienda-juguetes-git-master-andreas-projects-c298c94d.vercel.app'],
+    origin: function(origin, callback) {
+        // Permitir solicitudes sin origin (como las aplicaciones móviles o postman)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) === -1) {
+            console.log('Origin no permitido:', origin);
+        }
+        // Permitir cualquier origen en desarrollo
+        return callback(null, true);
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true
 }));
@@ -63,9 +79,11 @@ mongoose.connection.on('error', (err) => {
     isConnected = false;
 });
 
-// Middleware para logging
+// Middleware para logging mejorado
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    console.log('Origin:', req.get('origin'));
+    console.log('Headers:', req.headers);
     next();
 });
 
