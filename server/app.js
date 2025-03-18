@@ -169,7 +169,7 @@ app.get('/api/novedades/:id', async (req, res) => {
     }
 });
 
-
+// Rutas para Puzzles
 app.get('/api/puzzles', async (req, res) => {
     // Establecer headers CORS específicos
     const origin = req.headers.origin;
@@ -202,28 +202,6 @@ app.get('/api/puzzles', async (req, res) => {
     }
 });
 
-
-// Rutas para Puzzles
-app.get('/api/puzzles2', async (req, res) => {
-    try {
-        const puzzles = await Puzzles.find();
-        
-        if (!puzzles) {
-            return res.status(404).json({ 
-                mensaje: 'No se encontraron puzzles',
-                error: 'Colección vacía'
-            });
-        }
-        
-        res.json(puzzles);
-    } catch (err) {
-        res.status(500).json({ 
-            mensaje: 'Error al obtener puzzles',
-            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-        });
-    }
-});
 
 app.get('/api/puzzles/:id', async (req, res) => {
     try {
@@ -371,25 +349,31 @@ app.get('/api/juegos-madera/:id', async (req, res) => {
 // Rutas de autenticación
 app.post('/api/auth/registro', async (req, res) => {
     try {
-        const { nombre, email, password } = req.body;
+        const { username, password, nombre, apellidos, email, telefono, direccion } = req.body;
 
         // Verificar si el usuario ya existe
-        const usuarioExistente = await Usuario.findOne({ email });
+        const usuarioExistente = await Usuario.findOne({ 
+            $or: [{ email }, { username }] 
+        });
+        
         if (usuarioExistente) {
-            return res.status(400).json({ mensaje: 'El email ya está registrado' });
+            return res.status(400).json({ 
+                mensaje: 'El email o nombre de usuario ya está registrado' 
+            });
         }
 
         // Crear nuevo usuario
         const usuario = new Usuario({
+            username,
+            password,
             nombre,
+            apellidos,
             email,
-            password
+            telefono,
+            direccion
         });
 
         await usuario.save();
-
-        // Crear sesión
-        req.session.userId = usuario._id;
 
         res.status(201).json({
             mensaje: 'Usuario registrado exitosamente',
@@ -401,7 +385,10 @@ app.post('/api/auth/registro', async (req, res) => {
         });
     } catch (error) {
         console.error('Error en registro:', error);
-        res.status(500).json({ mensaje: 'Error en el servidor', error: error.message });
+        res.status(500).json({ 
+            mensaje: 'Error en el servidor', 
+            error: error.message 
+        });
     }
 });
 
@@ -471,7 +458,54 @@ app.get('/api/auth/verificar-sesion', async (req, res) => {
         res.status(500).json({ mensaje: 'Error en el servidor', error: error.message });
     }
 });
+// Ruta para verificar y actualizar stock
+app.post('/api/stock/verificar', async (req, res) => {
+    try {
+        const { productos } = req.body;
+        let stockDisponible = true;
+        let mensajeError = '';
 
+        for (const prod of productos) {
+            const producto = await obtenerProductoPorId(prod.id);
+            if (!producto || producto.stock < prod.cantidad) {
+                stockDisponible = false;
+                mensajeError = `Stock no disponible para ${producto ? producto.nombre : 'producto desconocido'}`;
+                break;
+            }
+        }
+
+        res.json({ disponible: stockDisponible, mensaje: mensajeError });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al verificar stock' });
+    }
+});
+
+// Ruta para reservar stock
+app.post('/api/stock/reservar', async (req, res) => {
+    try {
+        const { productos } = req.body;
+        const reservaId = Date.now().toString();
+        
+        // Reservar stock
+        for (const prod of productos) {
+            await actualizarStock(prod.id, -prod.cantidad);
+        }
+
+        // Programar liberación después de 1 hora
+        setTimeout(async () => {
+            for (const prod of productos) {
+                await actualizarStock(prod.id, prod.cantidad);
+            }
+        }, 3600000); // 1 hora
+
+        res.json({ 
+            mensaje: 'Stock reservado', 
+            reservaId 
+        });
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error al reservar stock' });
+    }
+});
 // Middleware para proteger rutas
 const requireAuth = async (req, res, next) => {
     if (!req.session.userId) {
