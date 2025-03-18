@@ -2,27 +2,69 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const usuarioSchema = new mongoose.Schema({
+    username: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    password: {
+        type: String,
+        required: true
+    },
     nombre: {
+        type: String,
+        required: true
+    },
+    apellidos: {
         type: String,
         required: true
     },
     email: {
         type: String,
         required: true,
-        unique: true,
-        lowercase: true
+        unique: true
     },
-    password: {
+    direccion: {
+        calle: {
+            type: String,
+            required: true
+        },
+        numero: {
+            type: String,
+            required: true
+        },
+        piso: String,
+        codigoPostal: {
+            type: String,
+            required: true
+        },
+        ciudad: {
+            type: String,
+            required: true
+        },
+        provincia: {
+            type: String,
+            required: true
+        }
+    },
+    telefono: {
         type: String,
         required: true
+    },
+    rol: {
+        type: String,
+        enum: ['usuario', 'admin'],
+        default: 'usuario'
     },
     fechaRegistro: {
         type: Date,
         default: Date.now
     }
+}, {
+    timestamps: true
 });
 
-// Hash de la contraseña antes de guardar
+// Método para encriptar contraseña antes de guardar
 usuarioSchema.pre('save', async function(next) {
     if (!this.isModified('password')) return next();
     this.password = await bcrypt.hash(this.password, 10);
