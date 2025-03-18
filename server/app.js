@@ -81,9 +81,16 @@ mongoose.connection.on('error', (err) => {
 
 // Middleware para logging mejorado
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-    console.log('Origin:', req.get('origin'));
-    console.log('Headers:', req.headers);
+    const timestamp = new Date().toISOString();
+    const logInfo = {
+        timestamp,
+        method: req.method,
+        path: req.path,
+        origin: req.get('origin'),
+        host: req.get('host'),
+        'user-agent': req.get('user-agent')
+    };
+    console.log('Request:', JSON.stringify(logInfo, null, 2));
     next();
 });
 
@@ -93,12 +100,14 @@ app.use(async (req, res, next) => {
         try {
             await connectDB();
             if (!isConnected) {
+                console.log('Base de datos no disponible - Intentando reconectar');
                 return res.status(503).json({ 
                     message: 'Base de datos no disponible',
                     details: 'Intentando reconectar con la base de datos'
                 });
             }
         } catch (error) {
+            console.error('Error de conexión a la base de datos:', error);
             return res.status(503).json({ 
                 message: 'Base de datos no disponible',
                 details: error.message
@@ -110,10 +119,12 @@ app.use(async (req, res, next) => {
 
 // Ruta raíz
 app.get('/', (req, res) => {
+    console.log('Accediendo a la ruta raíz');
     res.json({
         message: 'API de Tienda de Juguetes',
         status: 'online',
         dbStatus: isConnected ? 'connected' : 'disconnected',
+        environment: process.env.NODE_ENV,
         endpoints: {
             novedades: '/api/novedades',
             puzzles: '/api/puzzles',
