@@ -9,9 +9,23 @@ const session = require('express-session');
 const Usuario = require('./modelos/usuario');
 
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production' 
-        ? ['https://tienda-juguetes.vercel.app', 'http://localhost:4200']
-        : 'http://localhost:4200',
+    origin: function(origin, callback) {
+        const allowedOrigins = [
+            'https://tienda-juguetes.vercel.app',
+            'http://localhost:4200'
+        ];
+        
+        // Permitir solicitudes sin origen (como las realizadas desde Postman)
+        if (!origin) {
+            return callback(null, true);
+        }
+
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, origin);
+        } else {
+            callback(new Error('No permitido por CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
@@ -30,7 +44,7 @@ app.use(session({
     name: 'sessionId',
     cookie: {
         secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        sameSite: 'none', // Cambiado para permitir cookies en peticiones cross-origin
         maxAge: 3600000,
         httpOnly: true,
         path: '/'
