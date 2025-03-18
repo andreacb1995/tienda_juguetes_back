@@ -10,6 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 const dbUrl = process.env.MONGODB_URI;
+const dbName = 'edukids';
 
 // Verificar que la URL de MongoDB está configurada
 if (!dbUrl) {
@@ -30,12 +31,14 @@ const connectDB = async () => {
 
     try {
         const db = await mongoose.connect(dbUrl, {
+            dbName: dbName,
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
         });
 
         isConnected = true;
         console.log('MongoDB conectado en:', db.connection.host);
+        console.log('Base de datos:', db.connection.name);
     } catch (error) {
         console.error('Error conectando a MongoDB:', error.message);
         isConnected = false;
