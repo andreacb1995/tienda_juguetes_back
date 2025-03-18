@@ -4,7 +4,12 @@ const jugueteSchema = new mongoose.Schema({
     nombre: String,
     precio: Number,
     imagen: String,
-    descripcion: String
+    descripcion: String,
+    categoria: String,
+    edad_recomendada: String,
+    dimensiones: String,
+    marca: String,
+    stock: Number
 });
 
 // Crear modelos para cada colección

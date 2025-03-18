@@ -119,10 +119,28 @@ app.get('/api/novedades/:id', async (req, res) => {
 // Rutas para Puzzles
 app.get('/api/puzzles', async (req, res) => {
     try {
+        console.log('Intentando obtener puzzles...');
         const puzzles = await Puzzles.find();
+        console.log('Puzzles encontrados:', puzzles);
+        
+        // Si no hay puzzles, enviar un mensaje más descriptivo
+        if (!puzzles || puzzles.length === 0) {
+            console.log('No se encontraron puzzles en la base de datos');
+            return res.status(404).json({ 
+                message: 'No se encontraron puzzles',
+                dbStatus: isConnected,
+                collectionName: 'puzzles'
+            });
+        }
+        
         res.json(puzzles);
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        console.error('Error al obtener puzzles:', err);
+        res.status(500).json({ 
+            message: err.message,
+            dbStatus: isConnected,
+            error: process.env.NODE_ENV === 'development' ? err : undefined
+        });
     }
 });
 
