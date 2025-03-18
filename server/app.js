@@ -349,39 +349,19 @@ app.get('/api/juegos-madera/:id', async (req, res) => {
 // Rutas de autenticación
 app.post('/api/auth/registro', async (req, res) => {
     try {
-        const { username, password, nombre, apellidos, email, telefono, direccion } = req.body;
-
-        // Verificar si el usuario ya existe
-        const usuarioExistente = await Usuario.findOne({ 
-            $or: [{ email }, { username }] 
-        });
-        
-        if (usuarioExistente) {
-            return res.status(400).json({ 
-                mensaje: 'El email o nombre de usuario ya está registrado' 
-            });
-        }
-
-        // Crear nuevo usuario
-        const usuario = new Usuario({
-            username,
-            password,
-            nombre,
-            apellidos,
-            email,
-            telefono,
-            direccion
-        });
-
+        const usuario = new Usuario(req.body);
         await usuario.save();
+
+        // Crear sesión
+        req.session.userId = usuario._id;
+
+        // Devolver usuario sin campos sensibles
+        const usuarioResponse = usuario.toJSON();
+        delete usuarioResponse.password;
 
         res.status(201).json({
             mensaje: 'Usuario registrado exitosamente',
-            usuario: {
-                id: usuario._id,
-                nombre: usuario.nombre,
-                email: usuario.email
-            }
+            usuario: usuarioResponse
         });
     } catch (error) {
         console.error('Error en registro:', error);
@@ -391,7 +371,6 @@ app.post('/api/auth/registro', async (req, res) => {
         });
     }
 });
-
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
