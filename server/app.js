@@ -9,9 +9,9 @@ const session = require('express-session');
 const Usuario = require('./modelos/usuario');
 
 app.use(cors({
-    origin: [
-        'http://localhost:4200'
-    ],
+    origin: process.env.NODE_ENV === 'production' 
+        ? ['https://tienda-juguetes.vercel.app', 'http://localhost:4200']
+        : 'http://localhost:4200',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
@@ -19,11 +19,16 @@ app.use(cors({
     maxAge: 600
 }));
 
-// Middleware para logging - mantén esto después de CORS
+// Middleware para logging y CORS
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-    // Añadir headers de CORS manualmente si es necesario
     res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Origin', req.headers.origin);
+    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
+    
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
     next();
 });
 app.use(express.json());
@@ -31,13 +36,13 @@ app.use(express.json());
 
 // Configuración de sesiones
 app.use(session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || 'tu_secreto_temporal',
     resave: false,
     saveUninitialized: false,
     name: 'sessionId',
     cookie: {
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 3600000,
         httpOnly: true,
         path: '/'
