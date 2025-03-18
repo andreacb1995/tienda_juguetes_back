@@ -82,6 +82,15 @@ app.use(async (req, res, next) => {
 app.get('/', (req, res) => {
     res.json({
         message: 'API de Tienda de Juguetes',
+        status: 'online',
+        endpoints: {
+            novedades: '/api/novedades',
+            puzzles: '/api/puzzles',
+            juegosCreatividad: '/api/juegos-creatividad',
+            juegosMesa: '/api/juegos-mesa',
+            juegosMadera: '/api/juegos-madera',
+            health: '/api/health'
+        }
     });
 });
 
@@ -204,7 +213,6 @@ app.get('/api/health', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
-
 // Exportar la app para Vercel
 module.exports = app;
 
