@@ -14,15 +14,18 @@ app.use(cors({
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 600
 }));
 
+// Middleware para logging - mantén esto después de CORS
 app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-    console.log('Headers:', req.headers);
+    // Añadir headers de CORS manualmente si es necesario
+    res.header('Access-Control-Allow-Credentials', 'true');
     next();
 });
-
 app.use(express.json());
 
 
@@ -31,12 +34,13 @@ app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    name: 'sessionId', 
+    name: 'sessionId',
     cookie: {
-        secure: process.env.NODE_ENV === 'production', 
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'none',
         maxAge: 3600000,
-        httpOnly: true
+        httpOnly: true,
+        path: '/'
     }
 }));
 
