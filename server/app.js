@@ -8,7 +8,21 @@ const PORT = process.env.PORT || 3000;
 const session = require('express-session');
 const Usuario = require('./modelos/usuario');
 
-app.use(cors());
+app.use(cors({
+    origin: [
+        'http://localhost:4200'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    console.log('Headers:', req.headers);
+    next();
+});
+
 app.use(express.json());
 
 
@@ -17,10 +31,11 @@ app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    name: 'sessionId', 
     cookie: {
-        secure: true,  
-        sameSite: 'none', 
-        maxAge: 3600000, // 1 hora
+        secure: process.env.NODE_ENV === 'production', 
+        sameSite: 'none',
+        maxAge: 3600000,
         httpOnly: true
     }
 }));
@@ -50,6 +65,8 @@ const connectDB = async () => {
             dbName: dbName,
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
+            retryWrites: true,
+            w: 'majority'
         });
 
         isConnected = true;
@@ -116,10 +133,26 @@ app.get('/', (req, res) => {
 // Rutas para Novedades
 app.get('/api/novedades', async (req, res) => {
     try {
+        console.log('Intentando obtener novedades...');
         const novedades = await Novedades.find();
+        console.log('Novedades encontradas:', novedades.length);
+        
+        if (!novedades) {
+            console.log('No se encontraron novedades');
+            return res.status(404).json({ 
+                mensaje: 'No se encontraron novedades',
+                error: 'Colección vacía'
+            });
+        }
+        
         res.json(novedades);
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        console.error('Error al obtener novedades:', err);
+        res.status(500).json({ 
+            mensaje: 'Error al obtener novedades',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
