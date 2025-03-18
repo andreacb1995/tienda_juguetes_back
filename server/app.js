@@ -6,29 +6,7 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuración de CORS más permisiva para desarrollo
-const allowedOrigins = [
-    'https://tienda-juguetes.vercel.app',
-    'https://tienda-juguetes-git-master-andreas-projects-c298c94d.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001'
-];
-
-app.use(cors({
-    origin: function(origin, callback) {
-        // Permitir solicitudes sin origin (como las aplicaciones móviles o postman)
-        if (!origin) return callback(null, true);
-        
-        if (allowedOrigins.indexOf(origin) === -1) {
-            console.log('Origin no permitido:', origin);
-        }
-        // Permitir cualquier origen en desarrollo
-        return callback(null, true);
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true
-}));
-
+app.use(cors());
 app.use(express.json());
 
 const dbUrl = process.env.MONGODB_URI;
@@ -79,35 +57,18 @@ mongoose.connection.on('error', (err) => {
     isConnected = false;
 });
 
-// Middleware para logging mejorado
-app.use((req, res, next) => {
-    const timestamp = new Date().toISOString();
-    const logInfo = {
-        timestamp,
-        method: req.method,
-        path: req.path,
-        origin: req.get('origin'),
-        host: req.get('host'),
-        'user-agent': req.get('user-agent')
-    };
-    console.log('Request:', JSON.stringify(logInfo, null, 2));
-    next();
-});
-
 // Middleware para verificar el estado de la conexión
 app.use(async (req, res, next) => {
     if (!isConnected) {
         try {
             await connectDB();
             if (!isConnected) {
-                console.log('Base de datos no disponible - Intentando reconectar');
                 return res.status(503).json({ 
                     message: 'Base de datos no disponible',
                     details: 'Intentando reconectar con la base de datos'
                 });
             }
         } catch (error) {
-            console.error('Error de conexión a la base de datos:', error);
             return res.status(503).json({ 
                 message: 'Base de datos no disponible',
                 details: error.message
@@ -119,20 +80,8 @@ app.use(async (req, res, next) => {
 
 // Ruta raíz
 app.get('/', (req, res) => {
-    console.log('Accediendo a la ruta raíz');
     res.json({
         message: 'API de Tienda de Juguetes',
-        status: 'online',
-        dbStatus: isConnected ? 'connected' : 'disconnected',
-        environment: process.env.NODE_ENV,
-        endpoints: {
-            novedades: '/api/novedades',
-            puzzles: '/api/puzzles',
-            juegosCreatividad: '/api/juegos-creatividad',
-            juegosMesa: '/api/juegos-mesa',
-            juegosMadera: '/api/juegos-madera',
-            health: '/api/health'
-        }
     });
 });
 
@@ -142,7 +91,6 @@ app.get('/api/novedades', async (req, res) => {
         const novedades = await Novedades.find();
         res.json(novedades);
     } catch (err) {
-        console.error('Error en /api/novedades:', err);
         res.status(500).json({ message: err.message });
     }
 });
@@ -155,7 +103,6 @@ app.get('/api/novedades/:id', async (req, res) => {
         }
         res.json(novedad);
     } catch (err) {
-        console.error('Error en /api/novedades/:id:', err);
         res.status(500).json({ message: err.message });
     }
 });
@@ -248,33 +195,13 @@ app.get('/api/juegos-madera/:id', async (req, res) => {
     }
 });
 
-// Ruta de verificación de estado
+// Ruta de verificación de estado con más detalles
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'ok',
-        environment: process.env.NODE_ENV,
         dbStatus: isConnected ? 'connected' : 'disconnected',
         dbStateDetails: mongoose.connection.readyState,
         timestamp: new Date().toISOString()
-    });
-});
-
-// Manejo de rutas no encontradas
-app.use('*', (req, res) => {
-    console.log(`Ruta no encontrada: ${req.method} ${req.originalUrl}`);
-    res.status(404).json({ 
-        message: 'Ruta no encontrada',
-        requestedPath: req.originalUrl,
-        method: req.method,
-        availableEndpoints: {
-            root: '/',
-            novedades: '/api/novedades',
-            puzzles: '/api/puzzles',
-            juegosCreatividad: '/api/juegos-creatividad',
-            juegosMesa: '/api/juegos-mesa',
-            juegosMadera: '/api/juegos-madera',
-            health: '/api/health'
-        }
     });
 });
 
