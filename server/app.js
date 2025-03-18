@@ -210,9 +210,41 @@ app.get('/api/health', (req, res) => {
         status: 'ok',
         dbStatus: isConnected ? 'connected' : 'disconnected',
         dbStateDetails: mongoose.connection.readyState,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+        mongoDbConfigured: !!process.env.MONGODB_URI,
+        version: process.env.npm_package_version || '1.0.0'
     });
 });
+
+// Middleware de error global
+app.use((err, req, res, next) => {
+    console.error('Error no manejado:', err);
+    res.status(500).json({
+        message: 'Error interno del servidor',
+        error: process.env.NODE_ENV === 'production' ? {} : err,
+        path: req.path,
+        method: req.method
+    });
+});
+
+// Middleware para rutas no encontradas
+app.use((req, res) => {
+    res.status(404).json({
+        message: 'Ruta no encontrada',
+        path: req.path,
+        method: req.method,
+        availableEndpoints: {
+            novedades: '/api/novedades',
+            puzzles: '/api/puzzles',
+            juegosCreatividad: '/api/juegos-creatividad',
+            juegosMesa: '/api/juegos-mesa',
+            juegosMadera: '/api/juegos-madera',
+            health: '/api/health'
+        }
+    });
+});
+
 // Exportar la app para Vercel
 module.exports = app;
 
