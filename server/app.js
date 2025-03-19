@@ -373,9 +373,12 @@ app.post('/api/stock/reservar', async (req, res) => {
     try {
         const { productos } = req.body;
         const reservaId = Date.now().toString();
+        console.log('Stock');
 
         for (const prod of productos) {
+            console.log('Stock antes de actualizar');
             await actualizarStock(prod.categoria, prod._id, -prod.cantidad);
+            console.log('Stock actualizado');
         }
         console.log('Stock reservado', reservaId);
         res.status(200).json({ mensaje: 'Stock reservado', reservaId });
