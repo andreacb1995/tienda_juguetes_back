@@ -355,7 +355,7 @@ app.post('/api/stock/verificar', async (req, res) => {
         let mensajeError = '';
 
         for (const prod of productos) {
-            const producto = await obtenerProductoPorId(prod.id);
+            const producto = await obtenerProductoPorId(prod._id);
             if (!producto || producto.stock < prod.cantidad) {
                 stockDisponible = false;
                 mensajeError = `Stock no disponible para ${producto ? producto.nombre : 'producto desconocido'}`;
@@ -375,15 +375,8 @@ app.post('/api/stock/reservar', async (req, res) => {
         const reservaId = Date.now().toString();
 
         for (const prod of productos) {
-            await actualizarStock(prod.categoria, prod.id, -prod.cantidad);
+            await actualizarStock(prod.categoria, prod._id, -prod.cantidad);
         }
-
-        // Programar liberación del stock después de 1 hora
-        setTimeout(async () => {
-            for (const prod of productos) {
-                await actualizarStock(prod.categoria, prod.id, prod.cantidad);
-            }
-        }, 3600000);
 
         res.status(200).json({ mensaje: 'Stock reservado', reservaId });
 
