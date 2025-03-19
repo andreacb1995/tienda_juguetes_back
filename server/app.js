@@ -142,12 +142,9 @@ app.get('/', (req, res) => {
 // Ruta para Novedades
 app.get('/api/novedades', async (req, res) => {
     try {
-        console.log('Intentando obtener novedades...');
         const novedades = await Novedades.find();
-        console.log('Novedades encontradas:', novedades.length);
         
         if (!novedades) {
-            console.log('No se encontraron novedades');
             return res.status(404).json({ 
                 mensaje: 'No se encontraron novedades',
                 error: 'Colección vacía'
@@ -180,7 +177,6 @@ app.get('/api/puzzles', async (req, res) => {
         const puzzles = await Puzzles.find();
         
         if (!puzzles) {
-            console.log('No se encontraron puzzles');
             return res.status(404).json({ 
                 mensaje: 'No se encontraron puzzles',
                 error: 'Colección vacía'
@@ -381,12 +377,16 @@ app.post('/api/stock/reservar', async (req, res) => {
     try {
         const { productos } = req.body;
         const reservaId = Date.now().toString();
-        console.log('Stock');
-
         for (const prod of productos) {
-            console.log('Stock antes de actualizar');
-            //await actualizarStock(prod.categoria, prod._id, -prod.cantidad);
-            console.log('Stock actualizado');
+            const cantidad = prod.cantidad;
+            // Si la cantidad es negativa (reservar productos), disminuimos el stock
+            // Si la cantidad es positiva (agregar de nuevo al carrito), aumentamos el stock
+            if (cantidad < 0) {
+                await actualizarStock(prod.categoria, prod._id, cantidad);  // Reducir stock
+            } else if (cantidad > 0) {
+                await actualizarStock(prod.categoria, prod._id, cantidad);  // Aumentar stock
+            }
+
         }
         console.log('Stock reservado', reservaId);
         res.status(200).json({ mensaje: 'Stock reservado', reservaId });
@@ -442,19 +442,18 @@ app.use((req, res) => {
 });
 
 // Función para actualizar stock en la colección correcta
-const actualizarStock = async (categoria, id, cantidad) => {
+const actualizarStock = async (categoria, _id, cantidad) => {
     // Obtener el modelo basado en la categoría
     const modelo = modelos[categoria];
-
     if (!modelo) {
         throw new Error(`Modelo no encontrado para la categoría ${categoria}.`);
     }
 
     // Buscar el producto por su ID en la colección correcta
-    const producto = await modelo.findById(id);
+    const producto = await modelo.findById(_id);
 
     if (!producto) {
-        throw new Error(`Producto con ID ${id} no encontrado en la colección ${categoria}.`);
+        throw new Error(`Producto con ID ${_id} no encontrado en la colección ${categoria}.`);
     }
 
     // Actualizar el stock
@@ -463,7 +462,6 @@ const actualizarStock = async (categoria, id, cantidad) => {
     // Guardar el producto con el nuevo stock
     await producto.save();
 };
-
 
 
 // Exportar la app para Vercel

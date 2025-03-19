@@ -10,7 +10,7 @@ const jugueteSchema = new mongoose.Schema({
     dimensiones: String,
     marca: String,
     stock: Number,
-    coleccion: String
+    categoria: String
 });
 
 // Crear modelos para cada colección
