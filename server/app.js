@@ -115,6 +115,34 @@ app.use(async (req, res, next) => {
     next();
 });
 
+
+// Diccionario de colecciones disponibles
+const colecciones = {
+    'novedades': mongoose.model('Novedades', new mongoose.Schema({ nombre: String, stock: Number })),
+    'puzzles': mongoose.model('Puzzles', new mongoose.Schema({ nombre: String, stock: Number })),
+    'juegos-mesa': mongoose.model('JuegosMesa', new mongoose.Schema({ nombre: String, stock: Number })),
+    'juegos-madera': mongoose.model('JuegosMadera', new mongoose.Schema({ nombre: String, stock: Number })),
+    'juegos-creatividad': mongoose.model('JuegosCreatividad', new mongoose.Schema({ nombre: String, stock: Number }))
+};
+
+// Función para actualizar stock en la colección correcta
+const actualizarStock = async (coleccion, id, cantidad) => {
+    if (!colecciones[coleccion]) {
+        throw new Error(`La colección ${coleccion} no existe.`);
+    }
+
+    const modelo = colecciones[coleccion];
+    const producto = await modelo.findById(id);
+
+    if (!producto) {
+        throw new Error(`Producto con ID ${id} no encontrado en la colección ${coleccion}.`);
+    }
+
+    producto.stock += cantidad;
+    await producto.save();
+};
+
+
 // Ruta raíz
 app.get('/', (req, res) => {
     res.json({
@@ -131,7 +159,7 @@ app.get('/', (req, res) => {
     });
 });
 
-// Rutas para Novedades
+// Ruta para Novedades
 app.get('/api/novedades', async (req, res) => {
     try {
         console.log('Intentando obtener novedades...');
@@ -157,19 +185,7 @@ app.get('/api/novedades', async (req, res) => {
     }
 });
 
-app.get('/api/novedades/:id', async (req, res) => {
-    try {
-        const novedad = await Novedades.findById(req.params.id);
-        if (!novedad) {
-            return res.status(404).json({ message: 'Novedad no encontrada' });
-        }
-        res.json(novedad);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-// Rutas para Puzzles
+// Ruta para Puzzles
 app.get('/api/puzzles', async (req, res) => {
     // Establecer headers CORS específicos
     const origin = req.headers.origin;
@@ -202,27 +218,7 @@ app.get('/api/puzzles', async (req, res) => {
     }
 });
 
-
-app.get('/api/puzzles/:id', async (req, res) => {
-    try {
-        const puzzle = await Puzzles.findById(req.params.id);
-        if (!puzzle) {
-            return res.status(404).json({ 
-                mensaje: 'Puzzle no encontrado',
-                error: 'ID no existe'
-            });
-        }
-        res.json(puzzle);
-    } catch (err) {
-        res.status(500).json({ 
-            mensaje: 'Error al obtener el puzzle',
-            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-        });
-    }
-});
-
-// Rutas para Juegos de Creatividad
+// Ruta para Juegos de Creatividad
 app.get('/api/juegos-creatividad', async (req, res) => {
     try {
         const juegosCreatividad = await JuegosCreatividad.find();
@@ -244,26 +240,7 @@ app.get('/api/juegos-creatividad', async (req, res) => {
     }
 });
 
-app.get('/api/juegos-creatividad/:id', async (req, res) => {
-    try {
-        const juegoCreatividad = await JuegosCreatividad.findById(req.params.id);
-        if (!juegoCreatividad) {
-            return res.status(404).json({ 
-                mensaje: 'Juego de creatividad no encontrado',
-                error: 'ID no existe'
-            });
-        }
-        res.json(juegoCreatividad);
-    } catch (err) {
-        res.status(500).json({ 
-            mensaje: 'Error al obtener el juego de creatividad',
-            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-        });
-    }
-});
-
-// Rutas para Juegos de Mesa
+// Ruta para Juegos de Mesa
 app.get('/api/juegos-mesa', async (req, res) => {
     try {
         const juegosMesa = await JuegosMesa.find();
@@ -285,26 +262,7 @@ app.get('/api/juegos-mesa', async (req, res) => {
     }
 });
 
-app.get('/api/juegos-mesa/:id', async (req, res) => {
-    try {
-        const juegoMesa = await JuegosMesa.findById(req.params.id);
-        if (!juegoMesa) {
-            return res.status(404).json({ 
-                mensaje: 'Juego de mesa no encontrado',
-                error: 'ID no existe'
-            });
-        }
-        res.json(juegoMesa);
-    } catch (err) {
-        res.status(500).json({ 
-            mensaje: 'Error al obtener el juego de mesa',
-            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-        });
-    }
-});
-
-// Rutas para Juegos de Madera
+// Ruta para Juegos de Madera
 app.get('/api/juegos-madera', async (req, res) => {
     try {
         const juegosMadera = await JuegosMadera.find();
@@ -326,27 +284,7 @@ app.get('/api/juegos-madera', async (req, res) => {
     }
 });
 
-app.get('/api/juegos-madera/:id', async (req, res) => {
-    try {
-        const juegoMadera = await JuegosMadera.findById(req.params.id);
-        if (!juegoMadera) {
-            return res.status(404).json({ 
-                mensaje: 'Juego de madera no encontrado',
-                error: 'ID no existe'
-            });
-        }
-        res.json(juegoMadera);
-    } catch (err) {
-        res.status(500).json({ 
-            mensaje: 'Error al obtener el juego de madera',
-            error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-        });
-    }
-});
-
-
-// Rutas de autenticación
+// Ruta de autenticación
 app.post('/api/auth/registro', async (req, res) => {
     try {
         const usuario = new Usuario(req.body);
@@ -371,12 +309,13 @@ app.post('/api/auth/registro', async (req, res) => {
         });
     }
 });
+
 app.post('/api/auth/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { username, password } = req.body;
 
         // Buscar usuario
-        const usuario = await Usuario.findOne({ email });
+        const usuario = await Usuario.findOne({ username });
         if (!usuario) {
             return res.status(401).json({ mensaje: 'Credenciales inválidas' });
         }
@@ -394,8 +333,7 @@ app.post('/api/auth/login', async (req, res) => {
             mensaje: 'Login exitoso',
             usuario: {
                 id: usuario._id,
-                nombre: usuario.nombre,
-                email: usuario.email
+                nombre: usuario.username
             }
         });
     } catch (error) {
@@ -428,8 +366,7 @@ app.get('/api/auth/verificar-sesion', async (req, res) => {
             autenticado: true,
             usuario: {
                 id: usuario._id,
-                nombre: usuario.nombre,
-                email: usuario.email
+                nombre: usuario.username
             }
         });
     } catch (error) {
@@ -437,7 +374,8 @@ app.get('/api/auth/verificar-sesion', async (req, res) => {
         res.status(500).json({ mensaje: 'Error en el servidor', error: error.message });
     }
 });
-// Ruta para verificar y actualizar stock
+
+// Rutas para verificar y actualizar stock
 app.post('/api/stock/verificar', async (req, res) => {
     try {
         const { productos } = req.body;
@@ -459,32 +397,29 @@ app.post('/api/stock/verificar', async (req, res) => {
     }
 });
 
-// Ruta para reservar stock
 app.post('/api/stock/reservar', async (req, res) => {
     try {
         const { productos } = req.body;
         const reservaId = Date.now().toString();
-        
-        // Reservar stock
+
         for (const prod of productos) {
-            await actualizarStock(prod.id, -prod.cantidad);
+            await actualizarStock(prod.coleccion, prod.id, -prod.cantidad);
         }
 
-        // Programar liberación después de 1 hora
+        // Programar liberación del stock después de 1 hora
         setTimeout(async () => {
             for (const prod of productos) {
-                await actualizarStock(prod.id, prod.cantidad);
+                await actualizarStock(prod.coleccion, prod.id, prod.cantidad);
             }
-        }, 3600000); // 1 hora
+        }, 3600000);
 
-        res.json({ 
-            mensaje: 'Stock reservado', 
-            reservaId 
-        });
+        res.status(200).json({ mensaje: 'Stock reservado', reservaId });
+
     } catch (error) {
-        res.status(500).json({ mensaje: 'Error al reservar stock' });
+        res.status(500).json({ mensaje: 'Error al reservar stock', error: error.message });
     }
 });
+
 // Middleware para proteger rutas
 const requireAuth = async (req, res, next) => {
     if (!req.session.userId) {
