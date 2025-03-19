@@ -8,6 +8,14 @@ const PORT = process.env.PORT || 3000;
 const session = require('express-session');
 const Usuario = require('./modelos/usuario');
 
+const modelos = {
+    'novedades': require('./modelos/juguete').Novedades,
+    'puzzles': require('./modelos/juguete').Puzzles,
+    'juegos-creatividad': require('./modelos/juguete').JuegosCreatividad,
+    'juegos-mesa': require('./modelos/juguete').JuegosMesa,
+    'juegos-madera': require('./modelos/juguete').JuegosMadera
+};
+
 const corsOptions = {
     origin: function (origin, callback) {
         const allowedOrigins = ['http://localhost:4200', 'https://tienda-juguetes.vercel.app'];
@@ -434,12 +442,19 @@ app.use((req, res) => {
 });
 
 // Función para actualizar stock en la colección correcta
-const actualizarStock = async (modelo, id, cantidad) => {
-    // Buscar el producto por su ID en la colección indicada
+const actualizarStock = async (categoria, id, cantidad) => {
+    // Obtener el modelo basado en la categoría
+    const modelo = modelos[categoria];
+
+    if (!modelo) {
+        throw new Error(`Modelo no encontrado para la categoría ${categoria}.`);
+    }
+
+    // Buscar el producto por su ID en la colección correcta
     const producto = await modelo.findById(id);
 
     if (!producto) {
-        throw new Error(`Producto con ID ${id} no encontrado.`);
+        throw new Error(`Producto con ID ${id} no encontrado en la colección ${categoria}.`);
     }
 
     // Actualizar el stock
@@ -448,6 +463,7 @@ const actualizarStock = async (modelo, id, cantidad) => {
     // Guardar el producto con el nuevo stock
     await producto.save();
 };
+
 
 
 // Exportar la app para Vercel
