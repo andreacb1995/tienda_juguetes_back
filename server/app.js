@@ -375,13 +375,13 @@ app.post('/api/stock/reservar', async (req, res) => {
         const reservaId = Date.now().toString();
 
         for (const prod of productos) {
-            await actualizarStock(prod.coleccion, prod.id, -prod.cantidad);
+            await actualizarStock(prod.categoria, prod.id, -prod.cantidad);
         }
 
         // Programar liberación del stock después de 1 hora
         setTimeout(async () => {
             for (const prod of productos) {
-                await actualizarStock(prod.coleccion, prod.id, prod.cantidad);
+                await actualizarStock(prod.categoria, prod.id, prod.cantidad);
             }
         }, 3600000);
 
