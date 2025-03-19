@@ -115,34 +115,6 @@ app.use(async (req, res, next) => {
     next();
 });
 
-
-// Diccionario de colecciones disponibles
-const colecciones = {
-    'novedades': mongoose.model('Novedades', new mongoose.Schema({ nombre: String, stock: Number })),
-    'puzzles': mongoose.model('Puzzles', new mongoose.Schema({ nombre: String, stock: Number })),
-    'juegos-mesa': mongoose.model('JuegosMesa', new mongoose.Schema({ nombre: String, stock: Number })),
-    'juegos-madera': mongoose.model('JuegosMadera', new mongoose.Schema({ nombre: String, stock: Number })),
-    'juegos-creatividad': mongoose.model('JuegosCreatividad', new mongoose.Schema({ nombre: String, stock: Number }))
-};
-
-// Función para actualizar stock en la colección correcta
-const actualizarStock = async (coleccion, id, cantidad) => {
-    if (!colecciones[coleccion]) {
-        throw new Error(`La colección ${coleccion} no existe.`);
-    }
-
-    const modelo = colecciones[coleccion];
-    const producto = await modelo.findById(id);
-
-    if (!producto) {
-        throw new Error(`Producto con ID ${id} no encontrado en la colección ${coleccion}.`);
-    }
-
-    producto.stock += cantidad;
-    await producto.save();
-};
-
-
 // Ruta raíz
 app.get('/', (req, res) => {
     res.json({
@@ -464,6 +436,23 @@ app.use((req, res) => {
         }
     });
 });
+
+// Función para actualizar stock en la colección correcta
+const actualizarStock = async (modelo, id, cantidad) => {
+    // Buscar el producto por su ID en la colección indicada
+    const producto = await modelo.findById(id);
+
+    if (!producto) {
+        throw new Error(`Producto con ID ${id} no encontrado.`);
+    }
+
+    // Actualizar el stock
+    producto.stock += cantidad;
+
+    // Guardar el producto con el nuevo stock
+    await producto.save();
+};
+
 
 // Exportar la app para Vercel
 module.exports = app;
