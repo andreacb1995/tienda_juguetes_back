@@ -377,10 +377,8 @@ app.post('/api/stock/reservar', async (req, res) => {
         for (const prod of productos) {
             await actualizarStock(prod.categoria, prod._id, -prod.cantidad);
         }
-
-        const response = { mensaje: 'Stock reservado', reservaId };
-        console.log('Respuesta del servidor:', response);  
-        res.status(200).json(response);
+        console.log('Stock reservado', reservaId);
+        res.status(200).json({ mensaje: 'Stock reservado', reservaId });
 
     } catch (error) {
         res.status(500).json({ mensaje: 'Error al reservar stock', error: error.message });
