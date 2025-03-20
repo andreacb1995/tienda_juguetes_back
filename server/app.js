@@ -120,6 +120,48 @@ app.use(async (req, res, next) => {
     next();
 });
 
+// Middleware para verificar si el usuario es admin
+const requireAdmin = async (req, res, next) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ mensaje: 'No autorizado' });
+    }
+
+    try {
+        const usuario = await Usuario.findById(req.session.userId);
+        if (!usuario || usuario.rol !== 'admin') {
+            return res.status(403).json({ mensaje: 'Acceso denegado' });
+        }
+        req.usuario = usuario;
+        next();
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error en el servidor' });
+    }
+};
+// Función auxiliar para verificar stock
+async function verificarStockDisponible(categoria, productoId, cantidad) {
+    const modelo = modelos[categoria];
+    if (!modelo) return false;
+    
+    const producto = await modelo.findById(productoId);
+    return producto && producto.stock >= cantidad;
+}
+// Middleware para proteger rutas
+const requireAuth = async (req, res, next) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ mensaje: 'No autorizado' });
+    }
+    try {
+        const usuario = await Usuario.findById(req.session.userId);
+        if (!usuario) {
+            return res.status(401).json({ mensaje: 'No autorizado' });
+        }
+        req.usuario = usuario;
+        next();
+    } catch (error) {
+        res.status(500).json({ mensaje: 'Error en el servidor' });
+    }
+};
+
 // Ruta raíz
 app.get('/', (req, res) => {
     res.json({
@@ -403,17 +445,40 @@ app.post('/api/stock/verificar', async (req, res) => {
         let mensajeError = '';
 
         for (const prod of productos) {
-            const producto = await obtenerProductoPorId(prod._id);
-            if (!producto || producto.stock < prod.cantidad) {
+            // Obtener el modelo correcto según la categoría
+            const modelo = modelos[prod.categoria];
+            if (!modelo) {
                 stockDisponible = false;
-                mensajeError = `Stock no disponible para ${producto ? producto.nombre : 'producto desconocido'}`;
+                mensajeError = `Categoría no válida para el producto ${prod._id}`;
+                break;
+            }
+
+            // Buscar el producto en la colección correcta
+            const producto = await modelo.findById(prod._id);
+            
+            if (!producto) {
+                stockDisponible = false;
+                mensajeError = `Producto no encontrado: ${prod._id}`;
+                break;
+            }
+
+            if (producto.stock < prod.cantidad) {
+                stockDisponible = false;
+                mensajeError = `Stock no disponible para ${producto.nombre}`;
                 break;
             }
         }
 
-        res.json({ disponible: stockDisponible, mensaje: mensajeError });
+        res.json({ 
+            disponible: stockDisponible, 
+            mensaje: mensajeError 
+        });
     } catch (error) {
-        res.status(500).json({ mensaje: 'Error al verificar stock' });
+        console.error('Error al verificar stock:', error);
+        res.status(500).json({ 
+            mensaje: 'Error al verificar stock',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+        });
     }
 });
 
@@ -449,10 +514,23 @@ app.post('/api/pedidos/crear', async (req, res) => {
           mensaje: 'Faltan datos requeridos para crear el pedido'
         });
       }
+
+      // Verificar stock una última vez por seguridad
+      for (const producto of productos) {
+        const modelo = modelos[producto.categoria];
+        if (!modelo) continue;
+        
+        const productoEnBD = await modelo.findById(producto._id);
+        if (!productoEnBD || productoEnBD.stock < 0) {
+          return res.status(400).json({
+            mensaje: `Stock insuficiente para ${producto.nombre}`
+          });
+        }
+      }
   
       // Crear el pedido
       const pedido = new Pedido({
-        usuarioId: usuarioId || null, // Permitir pedidos sin usuario
+        usuarioId: usuarioId || null,
         datosCliente,
         productos,
         total,
@@ -465,7 +543,7 @@ app.post('/api/pedidos/crear', async (req, res) => {
         mensaje: 'Pedido creado exitosamente',
         pedido: {
           id: pedido._id,
-          codigoPedido: pedido.codigoPedido
+          estado: pedido.estado
         }
       });
   
@@ -476,7 +554,7 @@ app.post('/api/pedidos/crear', async (req, res) => {
         error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
       });
     }
-  });
+});
 
 // Endpoint para obtener pedidos del usuario
 app.get('/api/pedidos/usuario', async (req, res) => {
@@ -498,14 +576,84 @@ app.get('/api/pedidos/usuario', async (req, res) => {
     }
   });
 
-// Función auxiliar para verificar stock
-async function verificarStockDisponible(categoria, productoId, cantidad) {
-    const modelo = modelos[categoria];
-    if (!modelo) return false;
-    
-    const producto = await modelo.findById(productoId);
-    return producto && producto.stock >= cantidad;
-}
+  // Endpoint para obtener todos los pedidos (solo admin)
+app.get('/api/pedidos/todos', requireAdmin, async (req, res) => {
+    try {
+      const pedidos = await Pedido.find()
+        .sort({ fechaPedido: -1 });
+      res.json(pedidos);
+    } catch (error) {
+      res.status(500).json({ 
+        mensaje: 'Error al obtener pedidos',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+      });
+    }
+  });
+  
+// Endpoint para actualizar el estado de un pedido (solo admin)
+app.put('/api/pedidos/:id/estado', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { estado } = req.body;
+
+        if (!['aceptado', 'rechazado'].includes(estado)) {
+            return res.status(400).json({ mensaje: 'Estado no válido' });
+        }
+
+        const pedido = await Pedido.findByIdAndUpdate(
+            id,
+            { estado },
+            { new: true }
+        );
+
+        if (!pedido) {
+            return res.status(404).json({ mensaje: 'Pedido no encontrado' });
+        }
+
+        res.json({ 
+            mensaje: 'Estado actualizado correctamente',
+            pedido 
+        });
+    } catch (error) {
+            res.status(500).json({ 
+            mensaje: 'Error al actualizar el estado',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+        });
+    }
+});
+
+// Endpoint para actualizar el stock de un producto (solo admin)
+app.put('/api/productos/:categoria/:id/stock', requireAdmin, async (req, res) => {
+    try {
+        const { categoria, id } = req.params;
+        const { stock } = req.body;
+
+        const modelo = modelos[categoria];
+        if (!modelo) {
+            return res.status(400).json({ mensaje: 'Categoría no válida' });
+        }
+
+        const producto = await modelo.findByIdAndUpdate(
+            id,
+            { stock },
+            { new: true }
+        );
+
+        if (!producto) {
+            return res.status(404).json({ mensaje: 'Producto no encontrado' });
+        }
+
+        res.json({ 
+            mensaje: 'Stock actualizado correctamente',
+            producto 
+        });
+    } catch (error) {
+        res.status(500).json({ 
+        mensaje: 'Error al actualizar el stock',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+        });
+    }
+});
 
 app.get('/api/usuarios/datos', async (req, res) => {
     try {
@@ -543,22 +691,7 @@ app.put('/api/usuarios/actualizar', async (req, res) => {
         });
     }
 });
-// Middleware para proteger rutas
-const requireAuth = async (req, res, next) => {
-    if (!req.session.userId) {
-        return res.status(401).json({ mensaje: 'No autorizado' });
-    }
-    try {
-        const usuario = await Usuario.findById(req.session.userId);
-        if (!usuario) {
-            return res.status(401).json({ mensaje: 'No autorizado' });
-        }
-        req.usuario = usuario;
-        next();
-    } catch (error) {
-        res.status(500).json({ mensaje: 'Error en el servidor' });
-    }
-};
+
 
 // Middleware de error global
 app.use((err, req, res, next) => {
@@ -620,3 +753,4 @@ if (process.env.NODE_ENV !== 'production') {
         console.log(`Servidor corriendo en el puerto ${PORT}`);
     });
 }
+
