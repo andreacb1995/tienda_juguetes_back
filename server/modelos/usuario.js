@@ -65,21 +65,10 @@ const usuarioSchema = new mongoose.Schema({
     versionKey: false
 });
 
-// Método para encriptar contraseña antes de guardar
-usuarioSchema.pre('save', async function(next) {
-    if (!this.isModified('password')) return next();
-    this.password = await bcrypt.hash(this.password, 10);
-    next();
-});
-
-// Método para comparar contraseñas
-usuarioSchema.methods.compararPassword = async function(password) {
-    return await bcrypt.compare(password, this.password);
-};
-
 // Método para transformar el documento antes de enviarlo
 usuarioSchema.methods.toJSON = function() {
     const obj = this.toObject();
+    delete obj.password;
     delete obj.createdAt;
     delete obj.updatedAt;
     delete obj.__v;

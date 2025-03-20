@@ -7,6 +7,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const session = require('express-session');
 const Usuario = require('./modelos/usuario');
+const Pedido = require('./modelos/pedido');
+const bcrypt = require('bcryptjs');
 
 const modelos = {
     'novedades': require('./modelos/juguete').Novedades,
@@ -16,38 +18,33 @@ const modelos = {
     'juegos-madera': require('./modelos/juguete').JuegosMadera
 };
 
+// Actualiza la configuración de CORS
 const corsOptions = {
-    origin: function (origin, callback) {
-        const allowedOrigins = ['http://localhost:4200', 'https://tienda-juguetes.vercel.app'];
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, origin);
-        } else {
-            callback(new Error('Bloqueado por CORS'));
-        }
-    },
+    origin: ['http://localhost:4200', 'https://tienda-juguetes.vercel.app'],
     credentials: true,
-    optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
-
-app.use(express.json());
-
-
-// Configuración de sesiones
-app.use(session({
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  };
+  
+  app.use(cors(corsOptions));
+  
+  // Actualiza la configuración de sesiones
+  app.use(session({
     secret: process.env.SESSION_SECRET || 'tu_secreto_temporal',
     resave: false,
     saveUninitialized: false,
     name: 'sessionId',
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none', // Cambiado para permitir cookies en peticiones cross-origin
-        maxAge: 3600000,
-        httpOnly: true,
-        path: '/'
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000, // 24 horas
+      httpOnly: true
     }
-}));
+  }));
+
+app.use(express.json());
+
+
 
 const dbUrl = process.env.MONGODB_URI;
 const dbName = 'edukids';
@@ -260,18 +257,39 @@ app.get('/api/juegos-madera', async (req, res) => {
     }
 });
 
-// Ruta de autenticación
+// Ruta de registro
 app.post('/api/auth/registro', async (req, res) => {
     try {
-        const usuario = new Usuario(req.body);
+        const { username, password } = req.body;
+
+        // Verificar si el usuario ya existe
+        const usuarioExistente = await Usuario.findOne({ username });
+        if (usuarioExistente) {
+            return res.status(400).json({ mensaje: 'El usuario ya existe' });
+        }
+
+        // Crear el hash de la contraseña manualmente
+        const salt = await bcrypt.genSalt(10);
+        const hashPassword = await bcrypt.hash(password, salt);
+
+        // Crear nuevo usuario con la contraseña hasheada
+        const usuario = new Usuario({
+            ...req.body,
+            password: hashPassword
+        });
+
         await usuario.save();
 
         // Crear sesión
         req.session.userId = usuario._id;
 
         // Devolver usuario sin campos sensibles
-        const usuarioResponse = usuario.toJSON();
-        delete usuarioResponse.password;
+        const usuarioResponse = {
+            id: usuario._id,
+            username: usuario.username,
+            nombre: usuario.nombre,
+            rol: usuario.rol
+        };
 
         res.status(201).json({
             mensaje: 'Usuario registrado exitosamente',
@@ -280,41 +298,57 @@ app.post('/api/auth/registro', async (req, res) => {
     } catch (error) {
         console.error('Error en registro:', error);
         res.status(500).json({ 
-            mensaje: 'Error en el servidor', 
-            error: error.message 
+            mensaje: 'Error en el registro', 
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor' 
         });
     }
 });
 
+// Ruta de login
 app.post('/api/auth/login', async (req, res) => {
     try {
-        const { username, password } = req.body;
-
+        const { username, password } = req.body;        
         // Buscar usuario
         const usuario = await Usuario.findOne({ username });
         if (!usuario) {
+            console.log('Usuario no encontrado');
             return res.status(401).json({ mensaje: 'Credenciales inválidas' });
         }
 
-        // Verificar contraseña
-        const esValida = await usuario.compararPassword(password);
+        // Verificar contraseña directamente con bcrypt
+        const esValida = await bcrypt.compare(password, usuario.password);
+
         if (!esValida) {
+            console.log('Contraseña inválida');
             return res.status(401).json({ mensaje: 'Credenciales inválidas' });
         }
 
         // Crear sesión
         req.session.userId = usuario._id;
 
+        // Preparar respuesta sin datos sensibles
+        const usuarioResponse = {
+            id: usuario._id,
+            username: usuario.username,
+            nombre: usuario.nombre,
+            rol: usuario.rol,
+            apellidos: usuario.apellidos,
+            email: usuario.email,
+            telefono: usuario.telefono,
+            direccion: usuario.direccion,
+            rol: usuario.rol
+        };
+
         res.json({
             mensaje: 'Login exitoso',
-            usuario: {
-                id: usuario._id,
-                nombre: usuario.username
-            }
+            usuario: usuarioResponse
         });
     } catch (error) {
         console.error('Error en login:', error);
-        res.status(500).json({ mensaje: 'Error en el servidor', error: error.message });
+        res.status(500).json({ 
+            mensaje: 'Error en el servidor', 
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor' 
+        });
     }
 });
 
@@ -329,27 +363,37 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.get('/api/auth/verificar-sesion', async (req, res) => {
     try {
-        if (!req.session.userId) {
-            return res.json({ autenticado: false });
-        }
-
-        const usuario = await Usuario.findById(req.session.userId).select('-password');
-        if (!usuario) {
-            return res.json({ autenticado: false });
-        }
-
-        res.json({
+      if (!req.session.userId) {
+        return res.json({ autenticado: false });
+      }
+  
+      const usuario = await Usuario.findById(req.session.userId)
+        .select('-password -__v');
+  
+      if (!usuario) {
+        return res.json({ autenticado: false });
+      }
+      res.json({
             autenticado: true,
             usuario: {
-                id: usuario._id,
-                nombre: usuario.username
-            }
-        });
+            id: usuario._id,
+            username: usuario.username,
+            nombre: usuario.nombre,
+            apellidos: usuario.apellidos,
+            email: usuario.email,
+            telefono: usuario.telefono,
+            direccion: usuario.direccion,
+            rol: usuario.rol
+        }
+      });
     } catch (error) {
-        console.error('Error al verificar sesión:', error);
-        res.status(500).json({ mensaje: 'Error en el servidor', error: error.message });
+      console.error('Error al verificar sesión:', error);
+      res.status(500).json({ 
+        mensaje: 'Error en el servidor', 
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor' 
+      });
     }
-});
+  });
 
 // Rutas para verificar y actualizar stock
 app.post('/api/stock/verificar', async (req, res) => {
@@ -388,7 +432,6 @@ app.post('/api/stock/reservar', async (req, res) => {
             }
 
         }
-        console.log('Stock reservado', reservaId);
         res.status(200).json({ mensaje: 'Stock reservado', reservaId });
 
     } catch (error) {
@@ -396,6 +439,110 @@ app.post('/api/stock/reservar', async (req, res) => {
     }
 });
 
+app.post('/api/pedidos/crear', async (req, res) => {
+    try {
+      const { usuarioId, datosCliente, productos, total } = req.body;
+  
+      // Validar datos requeridos
+      if (!datosCliente || !productos || !total) {
+        return res.status(400).json({
+          mensaje: 'Faltan datos requeridos para crear el pedido'
+        });
+      }
+  
+      // Crear el pedido
+      const pedido = new Pedido({
+        usuarioId: usuarioId || null, // Permitir pedidos sin usuario
+        datosCliente,
+        productos,
+        total,
+        estado: 'pendiente'
+      });
+  
+      await pedido.save();
+  
+      res.status(201).json({
+        mensaje: 'Pedido creado exitosamente',
+        pedido: {
+          id: pedido._id,
+          codigoPedido: pedido.codigoPedido
+        }
+      });
+  
+    } catch (error) {
+      console.error('Error al crear pedido:', error);
+      res.status(500).json({
+        mensaje: 'Error al crear el pedido',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+      });
+    }
+  });
+
+// Endpoint para obtener pedidos del usuario
+app.get('/api/pedidos/usuario', async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ mensaje: 'Usuario no autenticado' });
+      }
+  
+      const pedidos = await Pedido.find({ usuarioId: req.session.userId })
+        .sort({ fechaPedido: -1 }); // Ordenar por fecha descendente
+  
+      res.json(pedidos);
+    } catch (error) {
+      console.error('Error al obtener pedidos:', error);
+      res.status(500).json({ 
+        mensaje: 'Error al obtener pedidos',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+      });
+    }
+  });
+
+// Función auxiliar para verificar stock
+async function verificarStockDisponible(categoria, productoId, cantidad) {
+    const modelo = modelos[categoria];
+    if (!modelo) return false;
+    
+    const producto = await modelo.findById(productoId);
+    return producto && producto.stock >= cantidad;
+}
+
+app.get('/api/usuarios/datos', async (req, res) => {
+    try {
+        const usuario = await Usuario.findById(req.usuario._id)
+            .select('-password -__v');
+        
+        res.json(usuario);
+    } catch (error) {
+        res.status(500).json({
+            mensaje: 'Error al obtener datos del usuario',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+        });
+    }
+});
+
+app.put('/api/usuarios/actualizar', async (req, res) => {
+    try {
+        const datosActualizados = req.body;
+        delete datosActualizados.password; // Evitar actualización de contraseña por esta ruta
+        
+        const usuario = await Usuario.findByIdAndUpdate(
+            req.usuario._id,
+            datosActualizados,
+            { new: true }
+        ).select('-password -__v');
+
+        res.json({
+            mensaje: 'Datos actualizados correctamente',
+            usuario
+        });
+    } catch (error) {
+        res.status(500).json({
+            mensaje: 'Error al actualizar datos',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+        });
+    }
+});
 // Middleware para proteger rutas
 const requireAuth = async (req, res, next) => {
     if (!req.session.userId) {
