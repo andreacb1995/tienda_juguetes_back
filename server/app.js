@@ -1,3 +1,4 @@
+// Configuración inicial: carga variables de entorno y dependencias
 require('dotenv').config();
 const mongoose = require('mongoose');
 const { Novedades, Puzzles, JuegosCreatividad, JuegosMesa, JuegosMadera } = require('./modelos/juguete');
@@ -10,6 +11,7 @@ const Usuario = require('./modelos/usuario');
 const Pedido = require('./modelos/pedido');
 const bcrypt = require('bcryptjs');
 
+//Modelos de juguetes por categoría
 const modelos = {
     'novedades': require('./modelos/juguete').Novedades,
     'puzzles': require('./modelos/juguete').Puzzles,
@@ -18,7 +20,7 @@ const modelos = {
     'juegos-madera': require('./modelos/juguete').JuegosMadera
 };
 
-// Actualiza la configuración de CORS
+// Configuración de CORS para permitir solicitudes desde ciertos orígenes
 const corsOptions = {
     origin: ['http://localhost:4200', 'https://tienda-juguetes.vercel.app'],
     credentials: true,
@@ -28,7 +30,7 @@ const corsOptions = {
   
 app.use(cors(corsOptions));
   
-// Actualiza la configuración de sesiones
+// Configuración de sesiones para manejar la autenticación
 app.use(session({
     secret: process.env.SESSION_SECRET || 'tu_secreto_temporal',
     resave: false,
@@ -47,7 +49,6 @@ app.use(express.json());
 const dbUrl = process.env.MONGODB_URI;
 const dbName = 'edukids';
 
-// Verificar que la URL de MongoDB está configurada
 if (!dbUrl) {
     console.error('Error: MONGODB_URI no está configurada en las variables de entorno');
     process.exit(1);
@@ -85,7 +86,7 @@ const connectDB = async () => {
 // Conectar a MongoDB al inicio
 connectDB();
 
-// Reconexión en caso de desconexión
+// Manejo de eventos de conexión y desconexión de MongoDB
 mongoose.connection.on('disconnected', () => {
     console.log('MongoDB desconectado. Intentando reconectar...');
     isConnected = false;
@@ -97,7 +98,7 @@ mongoose.connection.on('error', (err) => {
     isConnected = false;
 });
 
-// Middleware para verificar el estado de la conexión
+// Middleware para verificar la conexión a la base de datos
 app.use(async (req, res, next) => {
     if (!isConnected) {
         try {
@@ -135,6 +136,7 @@ const requireAdmin = async (req, res, next) => {
         res.status(500).json({ mensaje: 'Error en el servidor' });
     }
 };
+
 // Función auxiliar para verificar stock
 async function verificarStockDisponible(categoria, productoId, cantidad) {
     const modelo = modelos[categoria];
@@ -176,7 +178,7 @@ app.get('/', (req, res) => {
     });
 });
 
-// Ruta para Novedades
+// Rutas para obtener productos por categoría
 app.get('/api/novedades', async (req, res) => {
     try {
         const novedades = await Novedades.find();
@@ -392,6 +394,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+// Ruta para cerrar sesión
 app.post('/api/auth/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
@@ -401,6 +404,7 @@ app.post('/api/auth/logout', (req, res) => {
     });
 });
 
+// Ruta para verificar la sesión del usuario
 app.get('/api/auth/verificar-sesion', async (req, res) => {
     try {
       if (!req.session.userId) {
@@ -435,7 +439,7 @@ app.get('/api/auth/verificar-sesion', async (req, res) => {
     }
   });
 
-// Rutas para verificar y actualizar stock
+// Rutas para verificar y reservar stock
 app.post('/api/stock/verificar', async (req, res) => {
     try {
         const { productos } = req.body;
@@ -479,7 +483,6 @@ app.post('/api/stock/verificar', async (req, res) => {
         });
     }
 });
-
 app.post('/api/stock/reservar', async (req, res) => {
     try {
         const { productos } = req.body;
@@ -502,6 +505,7 @@ app.post('/api/stock/reservar', async (req, res) => {
     }
 });
 
+// Ruta para crear un pedido
 app.post('/api/pedidos/crear', async (req, res) => {
     try {
       const { usuarioId, datosCliente, productos, total } = req.body;
@@ -554,7 +558,7 @@ app.post('/api/pedidos/crear', async (req, res) => {
     }
 });
 
-// Endpoint para obtener pedidos del usuario
+// Ruta para obtener los pedidos de un usuario
 app.get('/api/pedidos/usuario', async (req, res) => {
     try {
       if (!req.session.userId) {
@@ -574,7 +578,7 @@ app.get('/api/pedidos/usuario', async (req, res) => {
     }
   });
 
-  // Endpoint para obtener todos los pedidos (solo admin)
+// Ruta para obtener todos los pedidos (solo admin)
 app.get('/api/pedidos/todos', requireAdmin, async (req, res) => {
     try {
       const pedidos = await Pedido.find()
@@ -588,7 +592,7 @@ app.get('/api/pedidos/todos', requireAdmin, async (req, res) => {
     }
   });
   
-// Endpoint para actualizar el estado de un pedido (solo admin)
+// Ruta para actualizar el estado de un pedido (solo admin)
 app.put('/api/pedidos/:id/estado', requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
@@ -620,7 +624,7 @@ app.put('/api/pedidos/:id/estado', requireAdmin, async (req, res) => {
     }
 });
 
-// Endpoint para actualizar el stock de un producto (solo admin)
+// Ruta para actualizar el stock de un producto (solo admin)
 app.put('/api/productos/:categoria/:id/stock', requireAdmin, async (req, res) => {
     try {
         const { categoria, id } = req.params;
@@ -652,12 +656,11 @@ app.put('/api/productos/:categoria/:id/stock', requireAdmin, async (req, res) =>
         });
     }
 });
+
 // Ruta para agregar un nuevo juguete (solo admin)
 app.post('/api/productos/nuevo', requireAdmin, async (req, res) => {
     try {
-        const { categoria, datos } = req.body;
-        console.log(categoria, datos);
-        
+        const { categoria, datos } = req.body;        
         // Verificar si la categoría es válida
         const modelo = modelos[categoria];
         if (!modelo) {
@@ -681,6 +684,7 @@ app.post('/api/productos/nuevo', requireAdmin, async (req, res) => {
     }
 });
 
+// Ruta para obtener datos del usuario
 app.get('/api/usuarios/datos', async (req, res) => {
     try {
         const usuario = await Usuario.findById(req.usuario._id)
@@ -695,6 +699,7 @@ app.get('/api/usuarios/datos', async (req, res) => {
     }
 });
 
+// Ruta para actualizar datos del usuario
 app.put('/api/usuarios/actualizar', async (req, res) => {
     try {
         const datosActualizados = req.body;

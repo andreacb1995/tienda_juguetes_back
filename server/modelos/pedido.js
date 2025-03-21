@@ -4,7 +4,7 @@ const pedidoSchema = new mongoose.Schema({
     usuarioId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Usuario',
-        required: false // Opcional para permitir pedidos sin usuario registrado
+        required: false 
     },
     datosCliente: {
         nombre: String,
