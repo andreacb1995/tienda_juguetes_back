@@ -26,25 +26,23 @@ const corsOptions = {
     allowedHeaders: ['Content-Type', 'Authorization']
   };
   
-  app.use(cors(corsOptions));
+app.use(cors(corsOptions));
   
-  // Actualiza la configuración de sesiones
-  app.use(session({
+// Actualiza la configuración de sesiones
+app.use(session({
     secret: process.env.SESSION_SECRET || 'tu_secreto_temporal',
     resave: false,
     saveUninitialized: false,
     name: 'sessionId',
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 24 * 60 * 60 * 1000, // 24 horas
-      httpOnly: true
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 24 * 60 * 60 * 1000, // 24 horas
+        httpOnly: true
     }
-  }));
+}));
 
 app.use(express.json());
-
-
 
 const dbUrl = process.env.MONGODB_URI;
 const dbName = 'edukids';
@@ -654,6 +652,34 @@ app.put('/api/productos/:categoria/:id/stock', requireAdmin, async (req, res) =>
         });
     }
 });
+// Ruta para agregar un nuevo juguete (solo admin)
+app.post('/api/productos/nuevo', requireAdmin, async (req, res) => {
+    try {
+        const { categoria, datos } = req.body;
+        console.log(categoria, datos);
+        
+        // Verificar si la categoría es válida
+        const modelo = modelos[categoria];
+        if (!modelo) {
+            return res.status(400).json({ mensaje: 'Categoría no válida' });
+        }
+
+        // Crear el nuevo juguete en la colección correspondiente
+        const nuevoJuguete = new modelo(datos);
+        await nuevoJuguete.save();
+
+        res.status(201).json({
+            mensaje: 'Juguete creado exitosamente',
+            juguete: nuevoJuguete
+        });
+    } catch (error) {
+        console.error('Error al crear juguete:', error);
+        res.status(500).json({
+            mensaje: 'Error al crear el juguete',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor'
+        });
+    }
+});
 
 app.get('/api/usuarios/datos', async (req, res) => {
     try {
@@ -709,15 +735,7 @@ app.use((req, res) => {
     res.status(404).json({
         message: 'Ruta no encontrada',
         path: req.path,
-        method: req.method,
-        availableEndpoints: {
-            novedades: '/api/novedades',
-            puzzles: '/api/puzzles',
-            juegosCreatividad: '/api/juegos-creatividad',
-            juegosMesa: '/api/juegos-mesa',
-            juegosMadera: '/api/juegos-madera',
-            health: '/api/health'
-        }
+        method: req.method
     });
 });
 
